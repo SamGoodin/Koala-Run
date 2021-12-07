@@ -6,8 +6,8 @@
  Python v3.10<br />
  Pygame v2.0.2<br />
 
- To run the game, execute the main script.<br />
- It will attempt to install dependencies if needed, however it is not perfect.<br />
+ To run the game, execute the run.py script.<br />
+ It will attempt to install dependencies (Pygame), however it is not perfect.<br />
  Ensure Python 3.10 and Pygame 2.0.2 are installed to play the game.
 
  Todo
