@@ -1,5 +1,5 @@
-# Pygame Game
- 437 Final Project
+# Koala Run
+ 2D Platformer for 437 Final Project 
 
  Dependencies
  --------------
