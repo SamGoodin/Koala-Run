@@ -6,7 +6,7 @@ class Background:
     def __init__(self, image : string, size : tuple, scrolling : bool):
         self.bg_x1, self.bg_y1, self.bg_x2, self.bg_y2 = None, None, None, None
         if image == None:
-            self.image = pygame.image.load('background.png').convert()
+            self.image = pygame.image.load('resources/backgrounds/default.png').convert()
         else:
             self.image = pygame.image.load(image).convert()
         if size:

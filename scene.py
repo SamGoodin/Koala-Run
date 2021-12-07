@@ -1,7 +1,8 @@
 import pygame
-from sprite import Sprite, Powerup
+from sprite import *
 from background import Background
 import string, random
+import time
 
 
 class Scene:
@@ -9,6 +10,14 @@ class Scene:
     def __init__(self, size=(640, 480), position=(100, 100), frame_rate=30):
         # Initialize the scene
         pygame.init()
+
+        # Start music
+        pygame.mixer.music.load("resources/music/song1.wav")
+        pygame.mixer.music.play(-1)
+
+        self.sfx = pygame.mixer.Channel(2)
+        self.hit = pygame.mixer.Sound("resources/music/hit.wav")
+
         self.size = size
         self.position = position
         self.frame_rate = frame_rate
@@ -18,19 +27,22 @@ class Scene:
         self.screen = pygame.display.set_mode(self.size)
         self.background = None
         
-        self.sprites = pygame.sprite.Group()
-        self.npc_sprites = pygame.sprite.Group()
-        self.playable_sprites = pygame.sprite.Group()
-        self.powerups = pygame.sprite.Group()
+        self.sprites = pygame.sprite.Group() # all enemies
+        self.playable_sprites = pygame.sprite.Group() # just player
         self.player = None
-        self.player_highlight = True
         
         self.font_size = 16
         self.font_name = 'arial'
         self.font = pygame.font.Font(pygame.font.match_font(self.font_name), self.font_size)
         self.score_pos = (500, 50)
         
-        self.__running = False      
+        self.__running = False   
+
+        self.enemy_num = 3
+        self.enemy_time_int = 2
+
+        # Used to track timing of enemy spawns
+        self.__timestart = time.time()   
         
     def set_font_size(self, size : int):
         self.font_size = size
@@ -103,58 +115,94 @@ class Scene:
                     self.screen.blit(bg_img, bg_pos1)
                     self.screen.blit(bg_img, bg_pos2)
                     
+        # Draw scorebox
+        pygame.draw.rect(self.screen, (0, 0, 0), [self.screen.get_width() - 200, 0, self.screen.get_width(), 100], 0)
+
         # Draw score
-        score = self.font.render("Score: " + str(self.player.score), True, (0, 0, 0))
+        score = self.font.render("Distance: " + str(round(self.player.score, 1)) + "m", True, (255, 255, 255))
         score_rect = score.get_rect()
-        score_rect.midtop = (500, 50)
+        score_rect.midtop = (self.screen.get_width() - 125, 10)
         self.screen.blit(score, score_rect)
-        
+
+        # Draw lives
+        lives = self.font.render("Lives: " + str(self.player.lives), True, (255, 255, 255))
+        lives_rect = score.get_rect()
+        lives_rect.midtop = (self.screen.get_width() - 125, 30)
+        self.screen.blit(lives, lives_rect)
+
+        self.playable_sprites.draw(self.screen)
         self.sprites.draw(self.screen)
         
-        if self.player_highlight:
-            # Red border around player
-            pygame.draw.rect(self.screen, (255, 0, 0), [self.player.get_x(), self.player.get_y(), self.player.get_width(), self.player.get_height()], 1)
-        
-        for npc in self.npc_sprites:
-            # Blue border around npc's
-            pygame.draw.rect(self.screen, (0, 0, 255), [npc.get_x(), npc.get_y(), npc.get_width(), npc.get_height()], 1)
-        
         pygame.display.flip()
+
+    def create_owl(self):
+        enemy = Owl(self.size[0], self.position[1])
+        self.add_npc_sprite(enemy)
+        print("Owl enemy spawned")
+        self.__timestart = time.time()
+    
+    def create_snake(self):
+        enemy = Snake(self.size[0])
+        self.add_npc_sprite(enemy)
+        print("Snake enemy spawned")
+        self.__timestart = time.time()
         
     def __update(self):
         # All updates every frame
-            
+        self.player.add_score(.1)
+
+        self.playable_sprites.update(self.size)
         self.sprites.update(self.size)
+
+        # Enemy spawns every two seconds
+        if ((time.time() - self.__timestart >= self.enemy_time_int)):
+
+            # Val represents our randomness for enemy spawns
+            # Stored once so enemies multiple enemies don't spawn simultaneously
+            # Range is numbers 1-25
+            val = random.randrange(1, 26)
+
+            # Logic for creating owls
+            if ((val % 2 == 0) and len(self.sprites) < self.enemy_num):
+                self.create_owl()
+
+            # Logic for creating snakes
+            if ((val % 2 == 1) and len(self.sprites) < self.enemy_num):
+                self.create_snake()
         
-        # Collisions with player and other playable sprites
-        playable_collisions = pygame.sprite.spritecollide(self.player, self.playable_sprites, False)
-        if playable_collisions:
-            # handle playable collision here
-            print("Playable Character Collision: " + str(playable_collisions))
+        # Logic for removing enemies offscreen
+        for enemy in self.sprites:
+            if enemy.offscreen:
+                enemy.kill()
+                print("Enemy offscreen removed.\nSprites: {}".format(len(self.sprites)))
+
+        npc_collision = pygame.sprite.groupcollide(self.playable_sprites, self.sprites, False, False)
+        for player, enemies in npc_collision.items():
+            for enemy in enemies:
+                self.sfx.play(self.hit)
+                enemy.kill()
+                player.add_lives(-1)
+                print("Enemy collided removed.\nSprites: {}".format(len(self.sprites)))
+
+        if (self.player.lives <= 0):
+            self.stop_game()
         
-        # Collisions with player and npc's
-        npc_collisions = pygame.sprite.spritecollide(self.player, self.npc_sprites, False)
-        if npc_collisions:
-            # handle npc collision here
-            print("NPC Collision: " + str(npc_collisions))
-       
-        # Collisions with player and powerups
-        pow_collisions = pygame.sprite.spritecollide(self.player, self.powerups, False)
-        if pow_collisions:
-            # handle powerup collision here
-            print("Powerup collision: " + str(pow_collisions))
-            pow_collisions[0].remove(True)
-            self.player.score += 1
+        """
+        if ((round(self.player.score) % 50) == 0):
+            # Increase number of enemies every 50m
+            self.enemy_num += 1
+            print("Max enemies on screen: {}".format(self.enemy_num))
+        """
             
-            # everytime a coin is hit, a new one spawns
-            randx, randy = random.randrange(0, self.size[0]), random.randrange(0, self.size[1])
-            pow = Powerup('goldCoin1.png', (randx, randy), (0, 0))
-            pow.set_colorkey((255,255,255))
-            self.add_powerup(pow)
-        
+        if ((round(self.player.score) % 100) == 0):
+            # Increase enemy spawn time every 100m
+            self.enemy_time_int -= .2
+            print("Enemy spawn time: {}".format(self.enemy_time_int))
+            
+
         self.__render()
         
-    def check_collision(self, sprite1 : Sprite, sprite2 : Sprite):
+    def check_collision(self, sprite1, sprite2):
         collides = pygame.sprite.collide_rect(sprite1, sprite2)
         return collides
     
@@ -163,55 +211,21 @@ class Scene:
             spr_height = sprite.get_height()
             sprite.change_position((sprite.get_x(), self.size[1] - spr_height))
     
-    def add_npc_sprite(self, sprite : Sprite):
+    def add_npc_sprite(self, sprite):
         self.sprites.add(sprite)
-        self.npc_sprites.add(sprite)
         
-    def add_playable_sprite(self, sprite : Sprite):
-        self.sprites.add(sprite)
+    def add_playable_sprite(self, sprite):
         self.playable_sprites.add(sprite)
+        self.add_player_sprite(sprite)
         
-    def add_player_sprite(self, sprite : Sprite):
-        self.sprites.add(sprite)
+    def add_player_sprite(self, sprite):
         self.set_player(sprite)
         
-    def add_powerup(self, powerup : Powerup):
-        self.sprites.add(powerup)
-        self.powerups.add(powerup)
-        
-    def set_player(self, sprite: Sprite):
+    def set_player(self, sprite):
         if self.player:
             self.player.is_player = False
         self.player = sprite
         self.player.is_player = True
-        
-    def swap_player(self):
-        spriteList = self.playable_sprites.sprites()
-        if len(spriteList) > 1:
-            idx = spriteList.index(self.player)
-            old_player = spriteList[idx]
-            if idx + 1 == len(spriteList):
-                idx = 0
-            else:
-                idx += 1
-            new_player = spriteList[idx]
-            
-            self.playable_sprites.add(old_player)
-            self.playable_sprites.remove(new_player)
-            
-            self.set_player(new_player)
-        else:
-            old_player = self.player
-            new_player = spriteList[0]
-            self.playable_sprites.add(old_player)
-            self.playable_sprites.remove(new_player)
-            self.set_player(new_player)
-            
-    def toggle_player_highlight(self):
-        if self.player_highlight:
-            self.player_highlight = False
-        else:
-            self.player_highlight = True
             
     def start_game(self):
         # Main game loop
@@ -230,18 +244,16 @@ class Scene:
         self.__cleanup()
             
     def stop_game(self):
+        pygame.mixer.music.stop()
+
+        sfx = pygame.mixer.Channel(1)
+        death = pygame.mixer.Sound("resources/music/death.wav")
+        sfx.play(death)
+        while sfx.get_busy():
+            # Waiting until sfx are done
+            pass
         self.__running = False
         
     def set_window_title(self, title):
         self.window_title = title
         pygame.display.set_caption(self.window_title)
-        
-    def hide_scene(self):
-        # Minimizes the window
-        pygame.display.iconify()
-        
-if __name__ == '__main__':
-    game = scene()
-    game.set_window_title("Game")
-    game.start_game()
-    
