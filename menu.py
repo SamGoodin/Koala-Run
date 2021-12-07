@@ -12,7 +12,7 @@ import json
 
 class Store(Tk):
 
-    def __init__(self, player_score, lives, sound=True):
+    def __init__(self, player_score, lives, shields, slows=0, sound=True):
         super().__init__()
         if sound:
             pygame.mixer.init()
@@ -28,8 +28,10 @@ class Store(Tk):
 
         self.__player_score = player_score
         self.__lives = lives
+        self.__shields = shields
+        self.__slows = slows
 
-        player_data = "Points: {} | Lives: {}".format(player_score, lives)
+        player_data = "Points: {} | Lives: {} | Shields: {}".format(self.__player_score, self.__lives, self.__shields)
         self.player_data = tkinter.Label(text=player_data, bg="black", fg="white")
         self.player_data.pack()
 
@@ -45,6 +47,32 @@ class Store(Tk):
 
         self.life_label.pack()
         self.add_lives.pack()
+
+        if (self.__player_score < 500):
+            shield_state = tkinter.DISABLED
+            shield_txt = "Need more points"
+        else:
+            shield_state = tkinter.NORMAL
+            shield_txt = "Buy 1 5s shield"
+
+        self.shield_lbl = tkinter.Label(text="Buy a 5 second shield for 500 points")
+        self.add_shield = tkinter.Button(self, text=shield_txt, command=self.__buy_shield, state=shield_state)
+
+        self.shield_lbl.pack()
+        self.add_shield.pack()
+
+        if (self.__player_score < 500):
+            slow_state = tkinter.DISABLED
+            slow_txt = "Need more points"
+        else:
+            slow_state = tkinter.NORMAL
+            slow_txt = "Slow down enemies"
+
+        self.slow_lbl = tkinter.Label(text="Slow enemy speed by 1 for 500 points")
+        self.slow_btn = tkinter.Button(self, text=slow_txt, command=self.__buy_slow, state=slow_state)
+
+        self.slow_lbl.pack()
+        self.slow_btn.pack()
 
         self.bg_label = tkinter.Label(text="Select a custom background to play on")
         self.bg_pick = tkinter.Button(self, text="Select a background", command=self.pick_background)
@@ -70,19 +98,27 @@ class Store(Tk):
         with open('data.txt', 'w') as output:
             json.dump(data, output)
 
-    def __on_close(self):
-        pass
-
     def run(self):
         self.mainloop()
 
     def hard_update(self, sound=False):
+        # This updates the menu and all its elements the hard way
         self.destroy()
-        self.__init__(self.__player_score, self.__lives, sound)
+        self.__init__(self.__player_score, self.__lives, self.__shields, self.__slows, sound)
 
     def __buy_life(self):
         self.__player_score -= 100
         self.__lives += 1
+        self.hard_update()
+
+    def __buy_shield(self):
+        self.__player_score -= 500
+        self.__shields += 1
+        self.hard_update()
+    
+    def __buy_slow(self):
+        self.__player_score -= 500
+        self.__slows += 1
         self.hard_update()
 
     def __start_game(self):
@@ -99,15 +135,16 @@ class Store(Tk):
         scene.set_font_size(20)
         
         # params: position (x, y), lives
-        defaultSprite = Player((20, scene.size[1] - 150), self.__lives)
+        defaultSprite = Player((20, scene.size[1] - 150), self.__lives, self.__shields)
         scene.add_playable_sprite(defaultSprite)
         
         # Starts the game
-        scene.start_game()
+        scene.start_game(self.__slows)
 
-        print("Score: {}\nLives: {}".format(defaultSprite.score, defaultSprite.lives))
+        print("Score: {}\nLives: {}\nShields: {}".format(defaultSprite.score, defaultSprite.lives, defaultSprite.shields))
 
         self.__player_score += round(defaultSprite.score)
+        self.__shields = defaultSprite.shields
         if (self.__player_score < 100):
             self.__lives = 1
 

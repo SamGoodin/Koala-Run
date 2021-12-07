@@ -17,8 +17,12 @@ class Scene:
 
         self.sfx = pygame.mixer.Channel(2)
         self.coin_sfx = pygame.mixer.Channel(3)
+        self.shield_sfx = pygame.mixer.Channel(4)
         self.hit = pygame.mixer.Sound("resources/music/hit.wav")
+        # For whatever reason, set volume does not work
+        #self.hit.set_volume(50)   
         self.gain = pygame.mixer.Sound("resources/music/coin.wav")
+        self.shield_sound = pygame.mixer.Sound("resources/music/shield.wav")
 
         self.size = size
         self.position = position
@@ -34,6 +38,7 @@ class Scene:
         self.playable_sprites = pygame.sprite.Group() # just player
         self.player = None
         
+        # Initialize fonts used
         self.font_size = 16
         self.font_name = 'arial'
         self.font = pygame.font.Font(pygame.font.match_font(self.font_name), self.font_size)
@@ -149,6 +154,21 @@ class Scene:
         time_rect.midtop = (self.screen.get_width() - 100, 75)
         self.screen.blit(elapsed, time_rect)
 
+        # left, top, width, height
+        # Draw shields and enemy slows
+        pygame.draw.rect(self.screen, (0, 0, 0), [self.screen.get_width() / 2 - 90, 15, 180, 45], 0)
+        if (self.player.invincible):
+            shield_timer = self.font.render("Shield active for " + str(round(5 - (time.time() - self.player.shieldtimer), 1)) + "s", True, (255, 255, 255))
+        else:
+            shield_timer = self.font.render("Shields: " + str(self.player.shields), True, (255, 255, 255))
+        shield_rect = shield_timer.get_rect()
+        shield_rect.midtop = (self.screen.get_width() / 2, 15)
+        slow = self.font.render("Enemies slowed by " + str(self.enemy_slows), True, (255, 255, 255))
+        slow_rect = slow.get_rect()
+        slow_rect.midtop = (self.screen.get_width() / 2, 35)
+        self.screen.blit(shield_timer, shield_rect)
+        self.screen.blit(slow, slow_rect)
+
         self.playable_sprites.draw(self.screen)
         self.coins.draw(self.screen)
         self.sprites.draw(self.screen)
@@ -156,13 +176,13 @@ class Scene:
         pygame.display.flip()
 
     def create_owl(self):
-        enemy = Owl(self.size[0], self.position[1])
+        enemy = Owl(self.size[0], self.enemy_slows)
         self.add_npc_sprite(enemy)
         print("Owl enemy spawned")
         self.__timestart = time.time()
     
     def create_snake(self):
-        enemy = Snake(self.size[0])
+        enemy = Snake(self.size[0], self.enemy_slows)
         self.add_npc_sprite(enemy)
         print("Snake enemy spawned")
         self.__timestart = time.time()
@@ -197,8 +217,8 @@ class Scene:
             if ((val % 2 == 1) and len(self.sprites) < self.enemy_num):
                 self.create_snake()
 
+        # Logic for creating coins every 5 seconds
         if ((time.time() - self.__cointime >= 5)):
-            # Logic for creating coins
             val = random.randrange(1, 11)
             if (val % 5 == 0):
                 self.create_coin()
@@ -209,14 +229,22 @@ class Scene:
                 enemy.kill()
                 print("Enemy offscreen removed.\nSprites: {}".format(len(self.sprites)))
 
+
+        # Collisions with enemies 
         npc_collision = pygame.sprite.groupcollide(self.playable_sprites, self.sprites, False, False)
         for player, enemies in npc_collision.items():
             for enemy in enemies:
-                self.sfx.play(self.hit)
+                if not player.invincible:
+                    self.sfx.play(self.hit)
+                    player.add_lives(-1)
+                    print("Enemy collided removed.\nSprites: {}".format(len(self.sprites)))
+                else:
+                    self.shield_sfx.play(self.shield_sound)
+                    print("Enemy collided with player shield.")
                 enemy.kill()
-                player.add_lives(-1)
-                print("Enemy collided removed.\nSprites: {}".format(len(self.sprites)))
-        
+
+
+        # Collisions with coins
         coin_collision = pygame.sprite.groupcollide(self.playable_sprites, self.coins, False, False)
         for player, coins in coin_collision.items():
             for coin in coins:
@@ -225,16 +253,19 @@ class Scene:
                 player.add_score(50)
                 print("Coin collided removed.")
 
+        # Player out of lives?
         if (self.player.lives <= 0):
             self.stop_game()
 
+
+        # Every 10 seconds, increase enemy spawn time
         if ((time.time() - self.__enemytime) >= 10):
             # Increase enemy spawn time
             self.enemy_time_int -= .2
             print("Enemy spawn time: {}".format(self.enemy_time_int))
             self.__enemytime = time.time()
             
-
+        # Begin drawing
         self.__render()
         
     def check_collision(self, sprite1, sprite2):
@@ -262,8 +293,9 @@ class Scene:
         self.player = sprite
         self.player.is_player = True
             
-    def start_game(self):
+    def start_game(self, slows):
         # Main game loop
+        self.enemy_slows = slows
         self.__running = True
         while self.__running:
             self.__game_clock.tick(self.frame_rate)

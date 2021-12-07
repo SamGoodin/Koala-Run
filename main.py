@@ -43,7 +43,7 @@ if create:
 """
 
 #menu = Store(int(input("Score: ")), int(input("Lives: ")))
-menu = Store(500, 3)
+menu = Store(500, 3, 0)
 menu.run()
 
 print("Game closed")

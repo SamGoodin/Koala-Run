@@ -1,10 +1,11 @@
 import pygame
 import random
 import string
+import time
 
 class Player(pygame.sprite.Sprite):
 
-    def __init__(self, position : tuple, lives):
+    def __init__(self, position : tuple, lives, shields):
         super().__init__()
         self.walking = [
                 "resources/player/koala_walk01.png",
@@ -32,6 +33,11 @@ class Player(pygame.sprite.Sprite):
 
         self.score = 0
         self.lives = lives
+
+        # Used for managing shield
+        self.shields = shields
+        self.invincible = False
+        self.shieldtimer = -1
 
     def add_lives(self, amount):
         self.lives += amount
@@ -86,8 +92,23 @@ class Player(pygame.sprite.Sprite):
         return self.image.get_width()
 
     def update(self, bounds : tuple):
+        if self.shieldtimer != -1:
+            # Shield is active
+            if (time.time() - self.shieldtimer >= 5):
+                # Turn off shield
+                self.invincible = False
+                self.shieldtimer = -1
+
         if self.is_player:
             keys = pygame.key.get_pressed()
+            # Shield
+            if keys[pygame.K_f]:
+                # Attempting to use shield
+                if ((self.shields > 0) and (not self.invincible)):
+                    self.invincible = True
+                    self.shields -= 1
+                    self.shieldtimer = time.time()
+
             if not self.JUMPING:
                 if self.walking_counter == 5:
                     self.walking_idx += 1
@@ -175,7 +196,7 @@ class Coin(pygame.sprite.Sprite):
 
 class Owl(pygame.sprite.Sprite):
 
-    def __init__(self, x_pos, y_pos):
+    def __init__(self, x_pos, slows):
         super().__init__()
         self.image = pygame.image.load("resources/enemies/owl.png").convert_alpha()
         self.image = pygame.transform.scale(self.image, (75, 75))
@@ -197,6 +218,7 @@ class Owl(pygame.sprite.Sprite):
 
         self.rect.topleft = self.position
 
+        self.x_move = 8 - slows
         self.y_move = -3
 
         # Used for removal of sprites as they pass player
@@ -208,7 +230,7 @@ class Owl(pygame.sprite.Sprite):
     def move(self):
         if (self.position[1] + self.y_move > self.max_y or self.position[1] + self.y_move < self.min_y):
             self.y_move *= -1
-        self.rect.topleft = [self.position[0] - 8, self.position[1] + self.y_move]
+        self.rect.topleft = [self.position[0] - self.x_move, self.position[1] + self.y_move]
         self.position = (self.rect.topleft[0], self.rect.topleft[1])
         self.x_pos, self.y_pos = self.position[0], self.position[1]
         if (self.rect.topright[0] < 0):
@@ -232,7 +254,7 @@ class Owl(pygame.sprite.Sprite):
 
 class Snake(pygame.sprite.Sprite):
 
-    def __init__(self, x_pos):
+    def __init__(self, x_pos, slows):
         super().__init__()
         self.image = pygame.image.load("resources/enemies/snake.png").convert_alpha()
         self.image = pygame.transform.scale(self.image, (125, 125))
@@ -246,6 +268,8 @@ class Snake(pygame.sprite.Sprite):
         self.x_pos = x_pos
         self.y_pos = 325
 
+        self.x_move = 8 - slows
+
         self.position = (self.x_pos, self.y_pos)
 
         self.rect.topleft = self.position
@@ -257,7 +281,7 @@ class Snake(pygame.sprite.Sprite):
         self.offscreen = True
 
     def move(self):
-        self.rect.topleft = [self.position[0] - 8, self.position[1]]
+        self.rect.topleft = [self.position[0] - self.x_move, self.position[1]]
         self.position = (self.rect.topleft[0], self.rect.topleft[1])
         self.x_pos, self.y_pos = self.position[0], self.position[1]
         if (self.rect.topright[0] < 0):
