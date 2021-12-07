@@ -20,4 +20,4 @@
  -Functionality for picking music<br />
  -Implement resource manager<br />
 
- *Tested using Python 3.10 and Pygame 2.0.2
+ *Tested using Python 3.10, Pygame 2.0.2, and Tkinter 8.6
