@@ -16,7 +16,9 @@ class Scene:
         pygame.mixer.music.play(-1)
 
         self.sfx = pygame.mixer.Channel(2)
+        self.coin_sfx = pygame.mixer.Channel(3)
         self.hit = pygame.mixer.Sound("resources/music/hit.wav")
+        self.gain = pygame.mixer.Sound("resources/music/coin.wav")
 
         self.size = size
         self.position = position
@@ -28,6 +30,7 @@ class Scene:
         self.background = None
         
         self.sprites = pygame.sprite.Group() # all enemies
+        self.coins = pygame.sprite.Group() # all coins
         self.playable_sprites = pygame.sprite.Group() # just player
         self.player = None
         
@@ -41,8 +44,12 @@ class Scene:
         self.enemy_num = 3
         self.enemy_time_int = 2
 
+        self.__totaltime = time.time()
+        self.__enemytime = self.__totaltime
         # Used to track timing of enemy spawns
-        self.__timestart = time.time()   
+        self.__timestart = self.__totaltime  
+        # Used to track coin spawns
+        self.__cointime = self.__totaltime
         
     def set_font_size(self, size : int):
         self.font_size = size
@@ -126,11 +133,24 @@ class Scene:
 
         # Draw lives
         lives = self.font.render("Lives: " + str(self.player.lives), True, (255, 255, 255))
-        lives_rect = score.get_rect()
+        lives_rect = lives.get_rect()
         lives_rect.midtop = (self.screen.get_width() - 125, 30)
         self.screen.blit(lives, lives_rect)
 
+        # Draw enemy spawn interval
+        enemy_spawn_int = self.font.render("Enemy spawn: " + str(round(self.enemy_time_int, 1)) + "s", True, (255, 255, 255))
+        spawn_rect = enemy_spawn_int.get_rect()
+        spawn_rect.midtop = (self.screen.get_width() - 100, 50)
+        self.screen.blit(enemy_spawn_int, spawn_rect)
+
+        # Draw time elapsed
+        elapsed = self.font.render("Time running: " + str(round(time.time() - self.__totaltime, 1)) + "s", True, (255, 255, 255))
+        time_rect = elapsed.get_rect()
+        time_rect.midtop = (self.screen.get_width() - 100, 75)
+        self.screen.blit(elapsed, time_rect)
+
         self.playable_sprites.draw(self.screen)
+        self.coins.draw(self.screen)
         self.sprites.draw(self.screen)
         
         pygame.display.flip()
@@ -146,11 +166,18 @@ class Scene:
         self.add_npc_sprite(enemy)
         print("Snake enemy spawned")
         self.__timestart = time.time()
+
+    def create_coin(self):
+        coin = Coin(self.size[0])
+        self.coins.add(coin)
+        print("Coin spawned")
+        self.__cointime = time.time()
         
     def __update(self):
         # All updates every frame
         self.player.add_score(.1)
 
+        self.coins.update(self.size)
         self.playable_sprites.update(self.size)
         self.sprites.update(self.size)
 
@@ -169,6 +196,12 @@ class Scene:
             # Logic for creating snakes
             if ((val % 2 == 1) and len(self.sprites) < self.enemy_num):
                 self.create_snake()
+
+        if ((time.time() - self.__cointime >= 5)):
+            # Logic for creating coins
+            val = random.randrange(1, 11)
+            if (val % 5 == 0):
+                self.create_coin()
         
         # Logic for removing enemies offscreen
         for enemy in self.sprites:
@@ -183,21 +216,23 @@ class Scene:
                 enemy.kill()
                 player.add_lives(-1)
                 print("Enemy collided removed.\nSprites: {}".format(len(self.sprites)))
+        
+        coin_collision = pygame.sprite.groupcollide(self.playable_sprites, self.coins, False, False)
+        for player, coins in coin_collision.items():
+            for coin in coins:
+                self.coin_sfx.play(self.gain)
+                coin.kill()
+                player.add_score(50)
+                print("Coin collided removed.")
 
         if (self.player.lives <= 0):
             self.stop_game()
-        
-        """
-        if ((round(self.player.score) % 50) == 0):
-            # Increase number of enemies every 50m
-            self.enemy_num += 1
-            print("Max enemies on screen: {}".format(self.enemy_num))
-        """
-            
-        if ((round(self.player.score) % 100) == 0):
-            # Increase enemy spawn time every 100m
+
+        if ((time.time() - self.__enemytime) >= 10):
+            # Increase enemy spawn time
             self.enemy_time_int -= .2
             print("Enemy spawn time: {}".format(self.enemy_time_int))
+            self.__enemytime = time.time()
             
 
         self.__render()

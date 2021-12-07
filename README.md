@@ -12,7 +12,6 @@
 
  Todo
  --------------
- -Implement gathering coins<br />
  -Implement profile saving<br />
  -Add storm cloud enemy<br />
  -Add player attack<br />

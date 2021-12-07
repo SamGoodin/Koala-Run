@@ -18,6 +18,8 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(self.image, (42, 72))
         #self.image.set_colorkey((0, 0, 0))
 
+        self.name = "player"
+
         self.size = self.image.get_size()
         self.rect = self.image.get_rect()
         self.rect.center = (self.image.get_width() / 2, self.image.get_height() / 2)
@@ -120,6 +122,57 @@ class Player(pygame.sprite.Sprite):
                     self.dy = 12
 
 
+class Coin(pygame.sprite.Sprite):
+
+    def __init__(self, x_pos):
+        super().__init__()
+        self.image = pygame.image.load("resources/other/goldCoin1.png").convert_alpha()
+        self.size = self.image.get_size()
+        self.rect = self.image.get_rect()
+        self.rect.center = (self.image.get_width() / 2, self.image.get_height() / 2)
+
+        self.name = "coin"
+
+        self.min_y = 100
+        self.max_y = 275
+
+        self.x_pos = x_pos
+        self.y_pos = random.randrange(self.min_y, self.max_y)
+
+        self.position = (self.x_pos, self.y_pos)
+        self.rect.topleft = self.position
+
+        self.x_move = -1
+
+        # Used for removal of sprites as they pass player
+        self.offscreen = False
+
+    def __offscreen(self):
+        self.offscreen = True
+
+    def move(self):
+        self.rect.topleft = [self.position[0] + self.x_move, self.position[1]]
+        self.position = (self.rect.topleft[0], self.rect.topleft[1])
+        self.x_pos, self.y_pos = self.position[0], self.position[1]
+        if (self.rect.topright[0] < 0):
+            self.__offscreen()
+
+    def update(self, *args):
+        self.move()
+
+    def get_x(self):
+        return self.x_pos
+    
+    def get_y(self):
+        return self.y_pos
+    
+    def get_height(self):
+        return self.image.get_height()
+    
+    def get_width(self):
+        return self.image.get_width()
+
+
 class Owl(pygame.sprite.Sprite):
 
     def __init__(self, x_pos, y_pos):
@@ -130,6 +183,8 @@ class Owl(pygame.sprite.Sprite):
         self.size = self.image.get_size()
         self.rect = self.image.get_rect()
         self.rect.center = (self.image.get_width() / 2, self.image.get_height() / 2)
+        
+        self.name = "owl"
 
         self.min_y = 100
         self.max_y = 275
@@ -144,7 +199,7 @@ class Owl(pygame.sprite.Sprite):
 
         self.y_move = -3
 
-        # Used for removal of enemies as they pass player
+        # Used for removal of sprites as they pass player
         self.offscreen = False
 
     def __offscreen(self):
@@ -185,6 +240,8 @@ class Snake(pygame.sprite.Sprite):
         self.size = self.image.get_size()
         self.rect = self.image.get_rect()
         self.rect.center = (self.image.get_width() / 2, self.image.get_height() / 2)
+
+        self.name = "snake"
 
         self.x_pos = x_pos
         self.y_pos = 325
