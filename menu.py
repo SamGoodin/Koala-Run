@@ -145,7 +145,8 @@ class Store(Tk):
 
         self.__player_score += round(defaultSprite.score)
         self.__shields = defaultSprite.shields
-        if (self.__player_score < 100):
+        self.__lives = defaultSprite.lives
+        if ((self.__player_score < 100) or (self.__lives == 0)):
             self.__lives = 1
 
         self.hard_update(True)
